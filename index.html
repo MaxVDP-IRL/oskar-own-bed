@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0e7a3f">
+  <title>Oskar's Own Bed</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="topbar">
+    <span id="app-title">🦕 Oskar's Own Bed</span>
+    <button id="gear-btn" aria-label="Parent settings">⚙️</button>
+  </header>
+
+  <main>
+    <section id="view-today" class="view"></section>
+    <section id="view-friends" class="view hidden"></section>
+    <section id="view-settings" class="view hidden"></section>
+  </main>
+
+  <div id="celebration" class="hidden"></div>
+  <div id="milestone-modal" class="hidden"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
