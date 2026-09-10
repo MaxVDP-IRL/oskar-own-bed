@@ -213,7 +213,11 @@ function renderSettings() {
         <span>Reset streak</span>
         <button class="settings-btn danger" id="reset-btn">Reset</button>
       </div>
-      <div class="settings-note">Nights logged: ${state.nights.length} · Longest streak: ${state.longest}<br>Day rolls over at 6am.</div>
+      <div class="settings-row">
+        <span>Erase everything (start fresh)</span>
+        <button class="settings-btn danger" id="erase-all-btn">Erase all</button>
+      </div>
+      <div class="settings-note">Nights logged: ${state.nights.length} · Longest streak: ${state.longest}<br>Day rolls over at 6am.<br><br>"Reset streak" clears the current run but keeps the best-ever record. "Erase everything" wipes the record and all dino friends too — good for clearing out test taps before Oskar's first real night.</div>
     </div>
   `;
 
@@ -280,6 +284,13 @@ function renderSettings() {
     if (!confirm("Reset Oskar's streak? This clears all logged nights (best-ever record is kept).")) return;
     const keepLongest = state.longest;
     state = { ...DEFAULT_STATE, settings: state.settings, longest: keepLongest, seenMilestones: state.seenMilestones };
+    persist();
+    renderSettings();
+  });
+
+  $('#erase-all-btn').addEventListener('click', () => {
+    if (!confirm('Erase EVERYTHING? This wipes all nights, the best-ever record, and every dino friend. There is no undo — use Export first if you want a backup.')) return;
+    state = { ...DEFAULT_STATE, settings: state.settings };
     persist();
     renderSettings();
   });
