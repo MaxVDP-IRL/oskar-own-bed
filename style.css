@@ -66,6 +66,18 @@ main {
   flex-direction: column;
 }
 
+/* Parent settings stay a phone column on a wide window. The kid's
+   today screen is unchanged and still fills the width. */
+#view-settings {
+  align-items: center;
+}
+
+#view-settings .friends-header,
+#view-settings .settings-body {
+  width: 100%;
+  max-width: 440px;
+}
+
 /* ---------- Today view ---------- */
 
 #today-scroll {
@@ -311,6 +323,151 @@ main {
   color: var(--grey-dark);
   text-align: center;
   line-height: 1.5;
+}
+
+.night-card {
+  background: white;
+  border-radius: 18px;
+  padding: 14px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 3px 10px rgba(18, 58, 34, 0.06);
+}
+
+.night-card h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--green-dark);
+}
+
+.day-nav {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.day-arrow {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border: none;
+  border-radius: 16px;
+  background: var(--green-light);
+  color: var(--green-dark);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(14, 122, 63, 0.18);
+}
+
+.day-arrow:disabled {
+  opacity: 0.35;
+  box-shadow: none;
+}
+
+.day-label {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 6px 8px;
+  border-radius: 16px;
+  border: 2px solid transparent;
+  background: var(--green-light);
+  color: var(--ink);
+  text-align: center;
+  font-family: inherit;
+}
+
+button.day-label {
+  border-color: var(--green);
+  cursor: pointer;
+}
+
+.day-nav-title {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.day-nav-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--grey-dark);
+  line-height: 1.3;
+}
+
+.night-card .week-row {
+  margin: 2px 0 0;
+}
+
+button.week-day {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button.week-day.selected {
+  box-shadow: 0 0 0 3px var(--gold);
+}
+
+.night-status {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.night-action {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 16px;
+  background: var(--green);
+  color: white;
+  box-shadow: 0 4px 0 var(--green-dark);
+}
+
+.night-action.undo {
+  background: white;
+  color: var(--green-dark);
+  border: 2px solid var(--green);
+  box-shadow: none;
+}
+
+.night-action:active {
+  transform: translateY(2px);
+}
+
+.day-hint {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--green-dark);
+  line-height: 1.35;
+}
+
+.streak-now {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--green-dark);
 }
 
 /* ---------- Celebration overlay ---------- */

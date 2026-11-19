@@ -1,10 +1,11 @@
-import { effectiveDate, computeStreakState, last7Nights, MILESTONES, newlyUnlockedMilestones, nextMilestone, validateBackup } from './logic.js';
+import { effectiveDate, computeStreakState, last7Nights, MILESTONES, newlyUnlockedMilestones, nextMilestone, validateBackup, addDays, daysBefore, canLogDate, applyNight, dayNavLabel, keptLongest, formatDay } from './logic.js';
 import { load, save } from './storage.js';
 
 const DEFAULT_STATE = { nights: [], longest: 0, seenMilestones: [], settings: { sound: true } };
 
 let state = { ...DEFAULT_STATE, ...load('state', DEFAULT_STATE) };
 let view = 'today';
+let viewDate = null;
 
 const $ = sel => document.querySelector(sel);
 const viewToday = $('#view-today');
@@ -21,6 +22,29 @@ function todayKey() {
   return effectiveDate();
 }
 
+function viewingDate() {
+  const today = todayKey();
+  if (!viewDate || !canLogDate(viewDate, today)) viewDate = today;
+  return viewDate;
+}
+
+function showDate(date) {
+  const today = todayKey();
+  if (!canLogDate(date, today)) return;
+  viewDate = date;
+  renderSettings();
+}
+
+function commitNight(date, stayed) {
+  const today = todayKey();
+  const result = applyNight(state.nights, today, date, stayed);
+  if (!result.ok || !result.changed) return null;
+  state.nights = result.nights;
+  state.longest = keptLongest(state.longest, state.nights, today);
+  persist();
+  return computeStreakState(state.nights, today);
+}
+
 function setView(next) {
   view = next;
   viewToday.classList.toggle('hidden', view !== 'today');
@@ -30,7 +54,10 @@ function setView(next) {
   if (view === 'settings') renderSettings();
 }
 
-$('#gear-btn').addEventListener('click', () => setView('settings'));
+$('#gear-btn').addEventListener('click', () => {
+  viewDate = todayKey();
+  setView('settings');
+});
 
 // ---------------- Today view ----------------
 
@@ -80,12 +107,8 @@ function renderToday({ justLogged = false } = {}) {
 
 function handleTap() {
   const today = todayKey();
-  if (state.nights.includes(today)) return;
-
-  state.nights = [...state.nights, today].sort();
-  const streak = computeStreakState(state.nights, today);
-  if (streak.longest > state.longest) state.longest = streak.longest;
-  persist();
+  const streak = commitNight(today, true);
+  if (!streak) return;
 
   celebrate();
 
@@ -182,9 +205,77 @@ function renderFriends() {
 
 // ---------------- Settings view (parent only) ----------------
 
+function nightCardHtml(today, selected) {
+  const onToday = selected === today;
+  const stayed = state.nights.includes(selected);
+  const label = dayNavLabel(selected, today);
+  const streak = computeStreakState(state.nights, today);
+  const best = Math.max(state.longest, streak.longest);
+  // Inside the current week, show the same seven nights as the home row
+  // so a gap sits between the footprints. Further back, slide the window
+  // so the night being edited stays on screen.
+  const end = daysBefore(selected, today) <= 6 ? today : selected;
+  const week = last7Nights(state.nights, end, today);
+  const yesterday = addDays(today, -1);
+  const hasEarlier = state.nights.some(d => d < today);
+  const showHint = onToday && hasEarlier && !state.nights.includes(yesterday);
+
+  const weekHtml = week.map(day => {
+    let cls = 'week-day';
+    if (day.date === selected) cls += ' selected';
+    if (day.isToday) cls += day.done ? ' today-done' : ' today-pending';
+    else if (day.done) cls += ' done';
+    else cls += ' missed';
+    const icon = day.done ? '🦶' : (day.isToday ? '🌙' : '·');
+    const name = formatDay(day.date);
+    const status = day.done ? 'stayed' : 'not logged';
+    return `<button type="button" class="${cls}" data-date="${day.date}" aria-label="${name}, ${status}" aria-pressed="${day.date === selected}">${icon}</button>`;
+  }).join('');
+
+  const labelEl = onToday
+    ? `<div class="day-label" id="day-label">`
+    : `<button type="button" class="day-label" id="day-label" aria-label="Return to today">`;
+  const labelClose = onToday ? '</div>' : '</button>';
+
+  let status;
+  let action;
+  if (onToday && stayed) {
+    status = 'Logged for tonight.';
+    action = 'Undo tonight';
+  } else if (onToday) {
+    status = 'Not logged yet.';
+    action = 'Add tonight';
+  } else if (stayed) {
+    status = 'Logged. Undo if this night was a mistake.';
+    action = 'Undo this night';
+  } else {
+    status = 'Not logged. Mark it if Oskar stayed in his own bed.';
+    action = 'He stayed 🦕';
+  }
+
+  return `
+    <div class="night-card">
+      <h2>🦕 Which night?</h2>
+      <div class="day-nav">
+        <button type="button" class="day-arrow" id="day-prev" aria-label="Previous day">‹</button>
+        ${labelEl}
+          <span class="day-nav-title">${label.title}</span>
+          <span class="day-nav-sub">${label.sub}</span>
+        ${labelClose}
+        <button type="button" class="day-arrow" id="day-next" aria-label="Next day"${onToday ? ' disabled' : ''}>›</button>
+      </div>
+      <div class="week-row">${weekHtml}</div>
+      <p class="night-status">${status}</p>
+      <button type="button" class="night-action${stayed ? ' undo' : ''}" id="night-toggle">${action}</button>
+      ${showHint ? '<p class="day-hint" id="day-hint">Missed logging yesterday? Tap ‹ to add it.</p>' : ''}
+      <p class="streak-now" id="streak-now">Streak now: ${streak.current} · Best ever: ${best}</p>
+    </div>
+  `;
+}
+
 function renderSettings() {
   const today = todayKey();
-  const hasToday = state.nights.includes(today);
+  const selected = viewingDate();
 
   viewSettings.innerHTML = `
     <div class="friends-header">
@@ -192,13 +283,10 @@ function renderSettings() {
       <div class="friends-title">Parent Settings</div>
     </div>
     <div class="settings-body">
+      ${nightCardHtml(today, selected)}
       <div class="settings-row">
         <span>Celebration sound</span>
         <button class="toggle ${state.settings.sound ? 'on' : ''}" id="sound-toggle" aria-label="Toggle sound"></button>
-      </div>
-      <div class="settings-row">
-        <span>${hasToday ? "Undo tonight's tap" : 'Add tonight manually'}</span>
-        <button class="settings-btn" id="manual-toggle">${hasToday ? 'Undo' : 'Add'}</button>
       </div>
       <div class="settings-row">
         <span>Backup</span>
@@ -217,26 +305,33 @@ function renderSettings() {
         <span>Erase everything (start fresh)</span>
         <button class="settings-btn danger" id="erase-all-btn">Erase all</button>
       </div>
-      <div class="settings-note">Nights logged: ${state.nights.length} · Longest streak: ${state.longest}<br>Day rolls over at 6am.<br><br>"Reset streak" clears the current run but keeps the best-ever record. "Erase everything" wipes the record and all dino friends too — good for clearing out test taps before Oskar's first real night.</div>
+      <div class="settings-note">Nights logged: ${state.nights.length} · Longest streak: ${state.longest}<br>Day rolls over at 6am. The arrows log an earlier night — tomorrow stays locked.<br><br>"Reset streak" clears the current run but keeps the best-ever record. "Erase everything" wipes the record and all dino friends too — good for clearing out test taps before Oskar's first real night.</div>
     </div>
   `;
 
-  $('#settings-back').addEventListener('click', () => setView('today'));
+  $('#settings-back').addEventListener('click', () => {
+    renderToday();
+    setView('today');
+  });
 
-  $('#sound-toggle').addEventListener('click', () => {
-    state.settings.sound = !state.settings.sound;
-    persist();
+  $('#day-prev').addEventListener('click', () => showDate(addDays(selected, -1)));
+  $('#day-next').addEventListener('click', () => showDate(addDays(selected, 1)));
+  $('#day-label')?.addEventListener('click', () => {
+    if ($('#day-label').tagName === 'BUTTON') showDate(today);
+  });
+  viewSettings.querySelectorAll('.week-day').forEach(btn => {
+    btn.addEventListener('click', () => showDate(btn.dataset.date));
+  });
+  $('#night-toggle').addEventListener('click', () => {
+    const date = viewingDate();
+    const stayed = !state.nights.includes(date);
+    if (!commitNight(date, stayed)) return;
+    renderToday();
     renderSettings();
   });
 
-  $('#manual-toggle').addEventListener('click', () => {
-    if (hasToday) {
-      state.nights = state.nights.filter(d => d !== today);
-    } else {
-      state.nights = [...state.nights, today].sort();
-    }
-    const streak = computeStreakState(state.nights, today);
-    if (streak.longest > state.longest) state.longest = streak.longest;
+  $('#sound-toggle').addEventListener('click', () => {
+    state.settings.sound = !state.settings.sound;
     persist();
     renderSettings();
   });
@@ -266,13 +361,13 @@ function renderSettings() {
       }
       state = {
         nights: [...new Set(obj.nights)].sort(),
-        longest: 0,
+        longest: Number.isFinite(obj.longest) ? obj.longest : 0,
         seenMilestones: obj.seenMilestones ?? [],
         settings: { ...DEFAULT_STATE.settings, ...(obj.settings ?? {}) },
       };
-      const streak = computeStreakState(state.nights, todayKey());
-      state.longest = Math.max(streak.longest, ...(state.nights.length ? [streak.longest] : [0]));
+      state.longest = keptLongest(state.longest, state.nights, todayKey());
       persist();
+      renderToday();
       renderSettings();
       alert('Backup imported!');
     } catch {
@@ -285,6 +380,7 @@ function renderSettings() {
     const keepLongest = state.longest;
     state = { ...DEFAULT_STATE, settings: state.settings, longest: keepLongest, seenMilestones: state.seenMilestones };
     persist();
+    renderToday();
     renderSettings();
   });
 
@@ -292,6 +388,7 @@ function renderSettings() {
     if (!confirm('Erase EVERYTHING? This wipes all nights, the best-ever record, and every dino friend. There is no undo — use Export first if you want a backup.')) return;
     state = { ...DEFAULT_STATE, settings: state.settings };
     persist();
+    renderToday();
     renderSettings();
   });
 }
