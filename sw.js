@@ -1,4 +1,4 @@
-const CACHE = 'oskar-own-bed-v1'; // bump this string on every deploy that changes any cached file
+const CACHE = 'oskar-own-bed-v2'; // bump this string on every deploy that changes any cached file
 const ASSETS = ['.', 'index.html', 'style.css', 'app.js', 'logic.js', 'storage.js', 'manifest.webmanifest', 'icon.svg', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
